@@ -1,0 +1,132 @@
+name: GitHub CD
+on:
+  - push
+  - workflow_dispatch
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distribution-kind: [ 'FOSS' ]
+        python-version: [ 3.9 ]
+
+    name: Build ${{ matrix.distribution-kind }} for ${{ matrix.package-target.name }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install -U pip setuptools wheel
+          python -m pip install -U -r DevOps/requirements.txt
+
+      - name: Generate build relevances
+        shell: bash
+        env:
+          DISTRIBUTION_KIND: ${{ matrix.distribution-kind }}
+          PACKAGE_TARGET: ${{ matrix.package-target.id }}
+        run: |
+          export GIT_REV_COUNT="$(git rev-list --count HEAD)"
+          export GIT_REV_HASH="$(git rev-parse --short HEAD)"
+          export GIT_REV_LONG_HASH="$(git rev-parse HEAD)"
+
+          python DevOps/remove_artifacts.py
+          python DevOps/update_fixtures.py
+          python DevOps/create_assets.py
+
+          find . -name "*.jinja" -type f -delete
+          find . -name "*.jinja.meta" -type f -delete
+
+      - name: Create package
+        shell: bash
+        env:
+          DISTRIBUTION_KIND: ${{ matrix.distribution-kind }}
+          PACKAGE_TARGET: ${{ matrix.package-target.name }}
+        run: |
+          python DevOps/create_package.py
+
+      # Upload the artifact.
+      - uses: actions/upload-artifact@v2
+        with:
+          name: UnityPackages
+          path: UnityPackages
+
+  collect:
+    needs: [ build ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: UnityPackages
+          path: UnityPackages
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install -U pip setuptools wheel
+          python -m pip install -U -r DevOps/requirements.txt
+
+      - name: Push distributions
+        shell: bash
+        env:
+          SMARTHANDS_WEBHOOK_URL: ${{ secrets.smarthands_webhook_url }}
+        run: |
+          export GIT_REV_COUNT="$(git rev-list --count HEAD)"
+          export GIT_LONG_HASH="$(git rev-parse HEAD)"
+          export GIT_HISTORY="$(git log --pretty=format:"%H")"
+
+          python DevOps/push_distributions.py
+
+  upload_distribution:
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
+
+    steps:
+      # Checking out is necessary for the hub command, apparently
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: UnityPackages
+          path: UnityPackages
+
+      - name: Upload release assets to tag
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -x
+          assets=()
+          for asset in ./UnityPackages/*.unitypackage; do
+            assets+=("-a" "$asset")
+          done
+          tag_name="${GITHUB_REF##*/}"
+          hub release create "${assets[@]}" -m "$tag_name" "$tag_name"

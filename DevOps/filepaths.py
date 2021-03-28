@@ -1,0 +1,12 @@
+# -*- coding: utf-8 -*-
+
+import pathlib
+
+DEVOPS_DIRECTORY = pathlib.Path(__file__).parent
+RESOURCES_DIRECTORY = DEVOPS_DIRECTORY / 'resources'
+ROOT_DIRECTORY = DEVOPS_DIRECTORY.parent
+ASSETS_DIRECTORY = ROOT_DIRECTORY / 'Assets'
+SMARTHANDS_DIRECTORY = ASSETS_DIRECTORY / 'HHSmartHands'
+
+assert ASSETS_DIRECTORY.exists() and ASSETS_DIRECTORY.is_dir()
+assert SMARTHANDS_DIRECTORY.exists() and ASSETS_DIRECTORY.is_dir()
