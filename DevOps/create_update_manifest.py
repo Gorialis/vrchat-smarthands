@@ -10,4 +10,4 @@ with open(sys.argv[1], "w", encoding="utf-8") as fp:
     json.dump({
         "latest": int(os.getenv('GIT_REV_COUNT')),
         "revisions": list(reversed(os.getenv('GIT_HISTORY').strip().split()))
-    }, fp=fp, indent=4).encode('utf-8')
+    }, fp=fp, indent=4)
