@@ -57,7 +57,7 @@ namespace SmartHands {
             latestRevision = null;
             latestHash = currentHash = null;
 
-            var request = UnityWebRequest.Get("https://gorialis.github.io/update_manifests/smarthands.json");
+            var request = UnityWebRequest.Get("https://raw.githubusercontent.com/Gorialis/vrchat-smarthands/info/auto-updater/manifest.json");
 
             request.SendWebRequest();
 
