@@ -6,7 +6,7 @@ import sys
 
 
 # Create manifest
-with open(sys.argv[1]) as fp:
+with open(sys.argv[1], "w", encoding="utf-8") as fp:
     json.dump({
         "latest": int(os.getenv('GIT_REV_COUNT')),
         "revisions": list(reversed(os.getenv('GIT_HISTORY').strip().split()))
