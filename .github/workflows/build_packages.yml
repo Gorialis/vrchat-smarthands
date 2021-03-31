@@ -1,4 +1,4 @@
-name: GitHub CD
+name: Build unitypackages
 on:
   - push
   - workflow_dispatch
@@ -61,44 +61,6 @@ jobs:
         with:
           name: UnityPackages
           path: UnityPackages
-
-  collect:
-    needs: [ build ]
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          submodules: true
-
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: UnityPackages
-          path: UnityPackages
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          python -m pip install -U pip setuptools wheel
-          python -m pip install -U -r DevOps/requirements.txt
-
-      - name: Push distributions
-        shell: bash
-        env:
-          SMARTHANDS_WEBHOOK_URL: ${{ secrets.smarthands_webhook_url }}
-        run: |
-          export GIT_REV_COUNT="$(git rev-list --count HEAD)"
-          export GIT_LONG_HASH="$(git rev-parse HEAD)"
-          export GIT_HISTORY="$(git log --pretty=format:"%H")"
-
-          python DevOps/push_distributions.py
 
   upload_distribution:
     needs: [ build ]
